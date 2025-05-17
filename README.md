@@ -1,5 +1,5 @@
 # FOS
-The Online Food Ordering System (FOs) is a database-driven web application developed as a part of the CS202: Database Management Systems course at Özyeğin University, Spring 2025 semester.
+The Online Food Ordering System (FOS) is a database-driven web application developed as a part of the CS202: Database Management Systems course at Özyeğin University, Spring 2025 semester.
 
 This project simulates a real-world food delivery platform similar to Yemeksepeti, GetirYemek, Uber Eats, or DoorDash, with a focus on core database design, SQL integration, and backend web development using Python and Flask.
 
