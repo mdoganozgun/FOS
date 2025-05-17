@@ -1,7 +1,8 @@
-<!DOCTYPE html>
-<html>
-<head><title>Customer Dashboard</title></head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Customer Dashboard{% endblock %}
+
+{% block content %}
 <h2>Welcome, {{ username }} (Customer)</h2>
 
 <form method="get">
@@ -43,5 +44,4 @@
     <li>No orders to rate.</li>
   {% endfor %}
 </ul>
-</body>
-</html>
+{% endblock %}

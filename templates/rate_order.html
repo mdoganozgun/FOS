@@ -1,14 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head><title>Rate Order</title></head>
-<body>
-<h2>Rate Order #{{ order_id }}</h2>
+{% extends "base.html" %}
+{% block title %}Rate Order #{{ order_id }} – FoodApp{% endblock %}
 
-<form method="POST">
-    Rating (1-5): <input type="number" name="rating" min="1" max="5" required><br>
-    Comment: <br>
-    <textarea name="comment" rows="4" cols="50"></textarea><br>
-    <button type="submit">Submit Rating</button>
-</form>
-</body>
-</html>
+{% block content %}
+<h2>Rate Order #{{ order_id }}</h2>
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <form method="POST">
+      <div class="mb-3">
+        <label for="rating" class="form-label">Rating (1-5):</label>
+        <input type="number" class="form-control" id="rating" name="rating" min="1" max="5" required>
+      </div>
+      <div class="mb-3">
+        <label for="comment" class="form-label">Comment:</label>
+        <textarea class="form-control" id="comment" name="comment" rows="4"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit Rating</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

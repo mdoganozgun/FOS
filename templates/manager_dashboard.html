@@ -4,45 +4,83 @@
 <body>
 <h2>Welcome, {{ username }} (Manager)</h2>
 
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard – FoodApp{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h2>Welcome, {{ username }} (Manager)</h2>
+  </div>
+</div>
+
 {% for rid, name, city in restaurants %}
-    <h3>{{ name }} ({{ city }})</h3>
-    <form method="POST">
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3>{{ name }} ({{ city }})</h3>
+    </div>
+    <div class="card-body">
+      <form method="POST" class="row g-2 mb-3">
         <input type="hidden" name="restaurant_id" value="{{ rid }}">
-        <input type="text" name="item_name" placeholder="Item name" required>
-        <input type="text" name="description" placeholder="Description">
-        <input type="number" step="0.01" name="price" placeholder="Price" required>
-        <button type="submit">Add Item</button>
-    </form>
-
-    <ul>
-    {% for item in restaurant_menus[rid] %}
-        <li><strong>{{ item[0] }}</strong> — {{ item[2] }} — {{ item[1] }} ₺</li>
-    {% else %}
-        <li>No items.</li>
-    {% endfor %}
-    </ul>
-{% endfor %}
-
-<h3>📊 Last 30 Days Statistics</h3>
-<ul>
-{% for name, order_count, revenue in stats %}
-    <li>{{ name }} — {{ order_count }} orders — {{ revenue }} ₺</li>
-{% else %}
-    <li>No recent data.</li>
-{% endfor %}
-</ul>
-<h3>📦 Pending Orders</h3>
-<ul>
-  {% for cart_id, customer_id in pending_orders %}
-    <li>
-      Cart #{{ cart_id }} by Customer #{{ customer_id }}
-      <form method="POST" action="/manager/accept/{{ cart_id }}" style="display:inline;">
-        <button type="submit">Accept Order</button>
+        <div class="col-md-4">
+          <input type="text" name="item_name" class="form-control" placeholder="Item name" required>
+        </div>
+        <div class="col-md-4">
+          <input type="text" name="description" class="form-control" placeholder="Description">
+        </div>
+        <div class="col-md-2">
+          <input type="number" step="0.01" name="price" class="form-control" placeholder="Price" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary">Add Item</button>
+        </div>
       </form>
-    </li>
-  {% else %}
-    <li>No pending orders found.</li>
-  {% endfor %}
-</ul>
-</body>
-</html>
+      <ul class="list-group">
+        {% for item in restaurant_menus[rid] %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span><strong>{{ item[0] }}</strong> — {{ item[2] }}</span>
+            <span>{{ item[1] }} ₺</span>
+          </li>
+        {% else %}
+          <li class="list-group-item">No items.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% endfor %}
+
+<div class="row mb-4">
+  <div class="col">
+    <h3>📊 Last 30 Days Statistics</h3>
+    <ul class="list-group">
+      {% for name, order_count, revenue in stats %}
+        <li class="list-group-item d-flex justify-content-between">
+          <span>{{ name }}</span>
+          <span>{{ order_count }} orders — {{ revenue }} ₺</span>
+        </li>
+      {% else %}
+        <li class="list-group-item">No recent data.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col">
+    <h3>📦 Pending Orders</h3>
+    <ul class="list-group">
+      {% for cart_id, customer_id in pending_orders %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>Cart #{{ cart_id }} by Customer #{{ customer_id }}</span>
+          <form method="POST" action="{{ url_for('manager.accept_order', cart_id=cart_id) }}" class="m-0">
+            <button type="submit" class="btn btn-success btn-sm">Accept Order</button>
+          </form>
+        </li>
+      {% else %}
+        <li class="list-group-item">No pending orders found.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
