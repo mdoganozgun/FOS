@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders{% endblock %}
+
+{% block content %}
+<h2>📦 My Orders</h2>
+{% if orders %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Order #</th>
+        <th>Restaurant</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Items</th>
+        <th>Total (₺)</th>
+        <th>Reorder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+        <tr>
+          <td>{{ order[0] }}</td>
+          <td>{{ order[1] }}</td>
+          <td>{{ order[2] }}</td>
+          <td>{{ order[3] }}</td>
+          <td>{{ order[4] }}</td>
+          <td>{{ order[5] }}</td>
+          <td>
+            <form method="POST" action="/customer/reorder/{{ order[0] }}">
+              <button class="btn btn-sm btn-outline-primary">Reorder</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>You have no past orders yet.</p>
+{% endif %}
+{% endblock %}

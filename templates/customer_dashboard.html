@@ -1,4 +1,3 @@
-# templates/customer_dashboard.html
 {% extends "base.html" %}
 
 {% block title %}Customer Dashboard{% endblock %}
@@ -84,16 +83,10 @@
 <form method="POST" action="/customer/checkout">
     <button type="submit">Checkout My Cart</button>
 </form>
+<div class="d-flex align-items-center mt-4">
+  <span class="me-3">⭐ You have {{ session.get('pending_ratings', 0) }} order(s) awaiting your rating.</span>
+  <a href="{{ url_for('customer.view_orders') }}" class="btn btn-outline-secondary">📦 Go to My Orders</a>
+</div>
+<hr>
 
-<h3>⭐ Orders Awaiting Your Rating</h3>
-<ul>
-  {% for order in unrated_orders %}
-    <li>
-      Order #{{ order[0] }}
-      <a href="/customer/rate/{{ order[0] }}">Rate this order</a>
-    </li>
-  {% else %}
-    <li>No orders to rate.</li>
-  {% endfor %}
-</ul>
 {% endblock %}

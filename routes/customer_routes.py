@@ -188,9 +188,10 @@ def customer_dashboard():
 
     # Değerlendirilmemiş siparişler
     cursor.execute("""
-        SELECT O.orderID
+        SELECT O.orderID, R.restaurantName, C.createdTimestamp
         FROM `Order` O
         JOIN Cart C ON O.cartID = C.cartID
+        JOIN Restaurant R ON C.restaurantID = R.restaurantID
         WHERE C.customerID = %s AND C.status = 'ACCEPTED'
         AND NOT EXISTS (
             SELECT 1 FROM Rating R WHERE R.orderID = O.orderID
@@ -282,3 +283,127 @@ def rate_order(order_id):
 
     conn.close()
     return render_template("rate_order.html", order_id=order_id)
+
+
+# Route to reorder a past order (copy items to a new BUILDING cart)
+@customer_bp.route("/customer/reorder/<int:order_id>", methods=["POST"])
+def reorder(order_id):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Get cartID and restaurantID from order
+    cursor.execute("""
+        SELECT C.cartID, C.restaurantID
+        FROM `Order` O
+        JOIN Cart C ON O.cartID = C.cartID
+        WHERE O.orderID = %s AND C.customerID = %s
+    """, (order_id, session["user_id"]))
+    result = cursor.fetchone()
+    if not result:
+        conn.close()
+        flash("Original order not found.")
+        return redirect("/customer/orders")
+
+    old_cart_id, restaurant_id = result
+
+    # Create new cart
+    cursor.execute("INSERT INTO Cart (customerID, restaurantID) VALUES (%s, %s)", (session["user_id"], restaurant_id))
+    new_cart_id = cursor.lastrowid
+
+    # Copy items from old cart
+    cursor.execute("""
+        SELECT itemID, quantity FROM CartItem WHERE cartID = %s
+    """, (old_cart_id,))
+    items = cursor.fetchall()
+
+    for item_id, quantity in items:
+        cursor.execute("""
+            INSERT INTO CartItem (cartID, itemID, quantity) VALUES (%s, %s, %s)
+        """, (new_cart_id, item_id, quantity))
+
+    conn.commit()
+    conn.close()
+    flash("Order has been added to your cart.")
+    return redirect("/customer/dashboard")
+@customer_bp.route("/customer/orders")
+def view_orders():
+    if "user_id" not in session:
+        return "Unauthorized", 401
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT O.orderID, R.restaurantName, C.createdTimestamp, C.status,
+               GROUP_CONCAT(M.itemName SEPARATOR ', ') AS items,
+               SUM(CI.quantity * M.price) AS total
+        FROM `Order` O
+        JOIN Cart C ON O.cartID = C.cartID
+        JOIN CartItem CI ON C.cartID = CI.cartID
+        JOIN MenuItem M ON CI.itemID = M.itemID
+        JOIN Restaurant R ON C.restaurantID = R.restaurantID
+        WHERE C.customerID = %s
+        GROUP BY O.orderID
+        ORDER BY C.createdTimestamp DESC
+    """, (session["user_id"],))
+    orders = cursor.fetchall()
+    cursor.execute("""
+        SELECT COUNT(*)
+        FROM `Order` O
+        JOIN Cart C ON O.cartID = C.cartID
+        WHERE C.customerID = %s AND C.status = 'ACCEPTED'
+        AND NOT EXISTS (
+            SELECT 1 FROM Rating R WHERE R.orderID = O.orderID
+        )
+    """, (session["user_id"],))
+    pending_count = cursor.fetchone()[0]
+    session['pending_ratings'] = pending_count
+    conn.close()
+
+    return render_template("customer_orders.html", orders=orders)
+@customer_bp.route("/customer/profile", methods=["GET", "POST"])
+def profile():
+    if "user_id" not in session:
+        return "Unauthorized", 401
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if request.method == "POST":
+        email = request.form["email"]
+        phone = request.form["phone"]
+        address = request.form["address"]
+
+        cursor.execute("UPDATE User SET email = %s WHERE userID = %s", (email, session["user_id"]))
+
+        cursor.execute("DELETE FROM UserPhone WHERE userID = %s", (session["user_id"],))
+        cursor.execute("INSERT INTO UserPhone (userID, phoneNumber, phoneType) VALUES (%s, %s, 'Mobile')",
+                       (session["user_id"], phone))
+
+        cursor.execute("DELETE FROM UserAddress WHERE userID = %s", (session["user_id"],))
+        cursor.execute("""INSERT INTO UserAddress (userID, addressText, city, district, neighborhood)
+                          VALUES (%s, %s, 'City', 'District', 'Neighborhood')""",
+                       (session["user_id"], address))
+
+        conn.commit()
+        conn.close()
+        flash("Profile updated successfully.")
+        return redirect("/customer/profile")
+
+    # GET method — fetch existing user info
+    cursor.execute("SELECT email FROM User WHERE userID = %s", (session["user_id"],))
+    email = cursor.fetchone()[0]
+
+    cursor.execute("SELECT phoneNumber FROM UserPhone WHERE userID = %s LIMIT 1", (session["user_id"],))
+    phone = cursor.fetchone()
+    phone = phone[0] if phone else ""
+
+    cursor.execute("SELECT addressText FROM UserAddress WHERE userID = %s LIMIT 1", (session["user_id"],))
+    address = cursor.fetchone()
+    address = address[0] if address else ""
+
+    conn.close()
+    return render_template("customer_profile.html", email=email, phone=phone, address=address)
