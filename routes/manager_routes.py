@@ -27,6 +27,22 @@ def manager_dashboard():
     cursor.execute("SELECT restaurantID, restaurantName, city FROM Restaurant WHERE managerID = %s", (session["user_id"],))
     restaurants = cursor.fetchall()
 
+    rids = [r[0] for r in restaurants]
+
+    if rids:
+        format_strings = ','.join(['%s'] * len(rids))
+        cursor.execute(f"""
+            SELECT restaurantID,
+                   COUNT(*) AS cnt,
+                   AVG(ratingValue) AS avg
+            FROM Rating
+            WHERE restaurantID IN ({format_strings})
+            GROUP BY restaurantID
+        """, tuple(rids))
+        rating_stats = {row[0]: {'cnt': row[1], 'avg': row[2]} for row in cursor.fetchall()}
+    else:
+        rating_stats = {}
+
     restaurant_menus = {}
     for r in restaurants:
         rid = r[0]
@@ -57,7 +73,8 @@ def manager_dashboard():
     conn.close()
     return render_template("manager_dashboard.html", username=session["username"],
                            restaurants=restaurants, restaurant_menus=restaurant_menus,
-                           stats=stats, pending_orders=pending_orders)
+                           stats=stats, pending_orders=pending_orders,
+                           rating_stats=rating_stats)
 
 @manager_bp.route("/manager/accept/<int:cart_id>", methods=["POST"])
 def accept_order(cart_id):
