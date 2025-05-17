@@ -2,7 +2,46 @@
 <html>
 <head><title>Customer Dashboard</title></head>
 <body>
-  <h2>Welcome, {{ username }} (Customer)</h2>
-  <p>You can browse restaurants and place orders here.</p>
+<h2>Welcome, {{ username }} (Customer)</h2>
+
+<form method="get">
+    Search by keyword: <input type="text" name="keyword">
+    <button type="submit">Search</button>
+</form>
+
+<h3>Restaurants in Your City</h3>
+{% for rid, name, city in restaurants %}
+    <h4>{{ name }} ({{ city }})</h4>
+    <ul>
+        {% for item in menus[rid] %}
+            <li>
+                {{ item[1] }} — {{ item[2] }} ₺
+                <form method="POST" style="display:inline;">
+                    <input type="hidden" name="item_id" value="{{ item[0] }}">
+                    <input type="hidden" name="restaurant_id" value="{{ rid }}">
+                    <input type="number" name="quantity" value="1" min="1" style="width:50px;">
+                    <button type="submit">Add to cart</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% endfor %}
+
+<!-- SEPETİ TAMAMLA BUTONU -->
+<h3>🛒 Actions</h3>
+<form method="POST" action="/customer/checkout">
+    <button type="submit">Checkout My Cart</button>
+</form>
+<h3>⭐ Orders Awaiting Your Rating</h3>
+<ul>
+  {% for order in unrated_orders %}
+    <li>
+      Order #{{ order[0] }}
+      <a href="/customer/rate/{{ order[0] }}">Rate this order</a>
+    </li>
+  {% else %}
+    <li>No orders to rate.</li>
+  {% endfor %}
+</ul>
 </body>
 </html>

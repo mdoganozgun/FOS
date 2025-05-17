@@ -2,7 +2,47 @@
 <html>
 <head><title>Manager Dashboard</title></head>
 <body>
-  <h2>Welcome, {{ username }} (Manager)</h2>
-  <p>You can manage your restaurant here.</p>
+<h2>Welcome, {{ username }} (Manager)</h2>
+
+{% for rid, name, city in restaurants %}
+    <h3>{{ name }} ({{ city }})</h3>
+    <form method="POST">
+        <input type="hidden" name="restaurant_id" value="{{ rid }}">
+        <input type="text" name="item_name" placeholder="Item name" required>
+        <input type="text" name="description" placeholder="Description">
+        <input type="number" step="0.01" name="price" placeholder="Price" required>
+        <button type="submit">Add Item</button>
+    </form>
+
+    <ul>
+    {% for item in restaurant_menus[rid] %}
+        <li><strong>{{ item[0] }}</strong> — {{ item[2] }} — {{ item[1] }} ₺</li>
+    {% else %}
+        <li>No items.</li>
+    {% endfor %}
+    </ul>
+{% endfor %}
+
+<h3>📊 Last 30 Days Statistics</h3>
+<ul>
+{% for name, order_count, revenue in stats %}
+    <li>{{ name }} — {{ order_count }} orders — {{ revenue }} ₺</li>
+{% else %}
+    <li>No recent data.</li>
+{% endfor %}
+</ul>
+<h3>📦 Pending Orders</h3>
+<ul>
+  {% for cart_id, customer_id in pending_orders %}
+    <li>
+      Cart #{{ cart_id }} by Customer #{{ customer_id }}
+      <form method="POST" action="/manager/accept/{{ cart_id }}" style="display:inline;">
+        <button type="submit">Accept Order</button>
+      </form>
+    </li>
+  {% else %}
+    <li>No pending orders found.</li>
+  {% endfor %}
+</ul>
 </body>
 </html>

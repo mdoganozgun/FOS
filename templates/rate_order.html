@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>Rate Order</title></head>
+<body>
+<h2>Rate Order #{{ order_id }}</h2>
+
+<form method="POST">
+    Rating (1-5): <input type="number" name="rating" min="1" max="5" required><br>
+    Comment: <br>
+    <textarea name="comment" rows="4" cols="50"></textarea><br>
+    <button type="submit">Submit Rating</button>
+</form>
+</body>
+</html>
