@@ -2,8 +2,6 @@
 <html>
 <head><title>Manager Dashboard</title></head>
 <body>
-<h2>Welcome, {{ username }} (Manager)</h2>
-
 {% extends "base.html" %}
 
 {% block title %}Manager Dashboard – FoodApp{% endblock %}
@@ -18,9 +16,23 @@
 {% for rid, name, city in restaurants %}
   <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h3 class="mb-0">{{ name }} ({{ city }})</h3>
-      <a href="{{ url_for('manager.edit_keywords', rid=rid) }}"
-         class="btn btn-sm btn-outline-secondary">Edit Keywords</a>
+      {% set stats = rating_stats.get(rid, {'cnt':0, 'avg':0}) %}
+      <h3 class="mb-0">
+        {{ name }} ({{ city }})
+        <small class="text-muted ms-2">
+          {% if stats.cnt >= 10 %}
+            ⭐ {{ stats.avg|round(1) }}
+          {% else %}
+            🆕 New
+          {% endif %}
+        </small>
+      </h3>
+      <div>
+        <a href="{{ url_for('manager.edit_keywords', rid=rid) }}"
+           class="btn btn-sm btn-outline-secondary">Edit Keywords</a>
+        <a href="{{ url_for('manager.edit_discounts', rid=rid) }}"
+           class="btn btn-sm btn-outline-secondary ms-2">Edit Discounts</a>
+      </div>
     </div>
     <div class="card-body">
       <form method="POST" class="row g-2 mb-3">
