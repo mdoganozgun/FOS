@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, session
 from db_config import get_connection
+from flask import flash
+
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -25,9 +27,11 @@ def login():
             else:
                 conn.close()
                 return redirect("/manager/dashboard")
+
         else:
             conn.close()
-            return "Login failed"
+            flash("Login failed. Check your username and password.")
+            return redirect("/login")
 
     return render_template("login.html")
 
@@ -59,6 +63,12 @@ def register():
         conn.commit()
         conn.close()
 
+        flash("Registration successful! Please log in.")
         return redirect("/login")
 
     return render_template("register.html")
+@auth_bp.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out.")
+    return redirect("/login")
