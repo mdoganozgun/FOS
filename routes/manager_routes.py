@@ -30,7 +30,7 @@ def manager_dashboard():
     restaurant_menus = {}
     for r in restaurants:
         rid = r[0]
-        cursor.execute("SELECT itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
+        cursor.execute("SELECT itemID, itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
         restaurant_menus[rid] = cursor.fetchall()
 
     one_month_ago = datetime.now() - timedelta(days=30)
@@ -73,6 +73,23 @@ def accept_order(cart_id):
             SELECT restaurantID FROM Restaurant WHERE managerID = %s
         )
     """, (cart_id, session["user_id"]))
+    conn.commit()
+    conn.close()
+    return redirect("/manager/dashboard")
+
+
+# Delete menu item route
+@manager_bp.route("/manager/delete_item/<int:item_id>", methods=["POST"])
+def delete_item(item_id):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE MI FROM MenuItem MI
+        JOIN Restaurant R ON MI.restaurantID = R.restaurantID
+        WHERE MI.itemID = %s AND R.managerID = %s
+    """, (item_id, session["user_id"]))
     conn.commit()
     conn.close()
     return redirect("/manager/dashboard")
