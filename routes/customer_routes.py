@@ -1,7 +1,65 @@
-from flask import Blueprint, render_template, session, request, redirect
+from flask import Blueprint, render_template, session, request, redirect, flash
 from db_config import get_connection
+from datetime import datetime, timedelta
+
 
 customer_bp = Blueprint("customer", __name__)
+
+@customer_bp.route("/customer/cart/delete", methods=["POST"])
+def delete_item():
+    if "user_id" not in session:
+        return "Unauthorized", 401
+
+    item_name = request.form["item_name"]
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT itemID FROM MenuItem WHERE itemName = %s", (item_name,))
+    item = cursor.fetchone()
+    if not item:
+        conn.close()
+        return redirect("/customer/dashboard")
+
+    item_id = item[0]
+    cursor.execute("SELECT cartID FROM Cart WHERE customerID = %s AND status = 'BUILDING'", (session["user_id"],))
+    cart = cursor.fetchone()
+    if not cart:
+        conn.close()
+        return redirect("/customer/dashboard")
+
+    cart_id = cart[0]
+    cursor.execute("DELETE FROM CartItem WHERE cartID = %s AND itemID = %s", (cart_id, item_id))
+    conn.commit()
+    conn.close()
+    return redirect("/customer/dashboard")
+
+@customer_bp.route("/customer/cart/increase", methods=["POST"])
+def increase_quantity():
+    if "user_id" not in session:
+        return "Unauthorized", 401
+
+    item_name = request.form["item_name"]
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT itemID FROM MenuItem WHERE itemName = %s", (item_name,))
+    item = cursor.fetchone()
+    if not item:
+        conn.close()
+        return redirect("/customer/dashboard")
+
+    item_id = item[0]
+    cursor.execute("SELECT cartID FROM Cart WHERE customerID = %s AND status = 'BUILDING'", (session["user_id"],))
+    cart = cursor.fetchone()
+    if not cart:
+        conn.close()
+        return redirect("/customer/dashboard")
+
+    cart_id = cart[0]
+    cursor.execute("UPDATE CartItem SET quantity = quantity + 1 WHERE cartID = %s AND itemID = %s", (cart_id, item_id))
+    conn.commit()
+    conn.close()
+    return redirect("/customer/dashboard")
 
 @customer_bp.route("/customer/dashboard", methods=["GET", "POST"])
 def customer_dashboard():
@@ -17,23 +75,46 @@ def customer_dashboard():
         restaurant_id = request.form["restaurant_id"]
         quantity = int(request.form["quantity"])
 
-        cursor.execute("SELECT cartID FROM Cart WHERE customerID = %s AND status = 'BUILDING'", (session["user_id"],))
+        cursor.execute("SELECT cartID, restaurantID FROM Cart WHERE customerID = %s AND status = 'BUILDING'", (session["user_id"],))
         cart = cursor.fetchone()
-        if not cart:
+
+        if cart:
+            cart_id, cart_restaurant = cart
+            try:
+                if int(cart_restaurant) != int(restaurant_id):
+                    conn.close()
+                    flash("You can only add items from one restaurant at a time.")
+                    return redirect("/customer/dashboard")
+            except Exception as e:
+                conn.close()
+                flash("Invalid restaurant ID.")
+                return redirect("/customer/dashboard")
+        else:
             cursor.execute("INSERT INTO Cart (customerID, restaurantID) VALUES (%s, %s)", (session["user_id"], restaurant_id))
             conn.commit()
             cart_id = cursor.lastrowid
-        else:
-            cart_id = cart[0]
 
         cursor.execute("""
             INSERT INTO CartItem (cartID, itemID, quantity)
             VALUES (%s, %s, %s)
             ON DUPLICATE KEY UPDATE quantity = quantity + %s
         """, (cart_id, item_id, quantity, quantity))
-        conn.commit()
 
-    # Restoranlar ve menüler
+        conn.commit()
+        conn.close()
+        return redirect("/customer/dashboard")
+
+    # Get current cart items
+    cursor.execute("""
+        SELECT M.itemName, CI.quantity, M.price, (CI.quantity * M.price) AS total
+        FROM CartItem CI
+        JOIN Cart C ON CI.cartID = C.cartID
+        JOIN MenuItem M ON CI.itemID = M.itemID
+        WHERE C.customerID = %s AND C.status = 'BUILDING'
+    """, (session["user_id"],))
+    cart_items = cursor.fetchall()
+
+    # Kullanıcının şehri
     cursor.execute("SELECT city FROM UserAddress WHERE userID = %s LIMIT 1", (session["user_id"],))
     result = cursor.fetchone()
     city = result[0] if result else None
@@ -41,22 +122,71 @@ def customer_dashboard():
     keyword = request.args.get("keyword")
     if keyword:
         cursor.execute("""
-            SELECT DISTINCT R.restaurantID, R.restaurantName, R.city
+            SELECT R.restaurantID, R.restaurantName, R.city, COUNT(K.keywordName) AS match_score
             FROM Restaurant R
             JOIN tagged_with T ON R.restaurantID = T.restaurantID
             JOIN Keyword K ON T.keywordID = K.keywordID
-            WHERE K.keywordName LIKE %s AND R.city = %s
-        """, ('%' + keyword + '%', city))
+            WHERE R.city = %s AND K.keywordName LIKE %s
+            GROUP BY R.restaurantID
+        """, (city, f"%{keyword}%"))
+        raw_results = cursor.fetchall()
+
+        restaurants = []
+        for rid, name, city_name, match_score in raw_results:
+            cursor.execute("""
+                SELECT COUNT(*), AVG(ratingValue)
+                FROM Rating
+                WHERE restaurantID = %s
+            """, (rid,))
+            count, avg = cursor.fetchone()
+            rating = round(avg, 2) if count >= 10 else "New"
+
+            restaurants.append({
+                "restaurantID": rid,
+                "name": name,
+                "city": city_name,
+                "match_score": match_score,
+                "rating": rating
+            })
+
+        def sort_key(r):
+            score = r["match_score"]
+            rating = r["rating"] if isinstance(r["rating"], float) else 0
+            return (-score, -rating)
+
+        restaurants.sort(key=sort_key)
+
     else:
         cursor.execute("SELECT restaurantID, restaurantName, city FROM Restaurant WHERE city = %s", (city,))
-    restaurants = cursor.fetchall()
+        raw_results = cursor.fetchall()
 
+        restaurants = []
+        for rid, name, city_name in raw_results:
+            cursor.execute("""
+                SELECT COUNT(*), AVG(ratingValue)
+                FROM Rating
+                WHERE restaurantID = %s
+            """, (rid,))
+            count, avg = cursor.fetchone()
+            rating = round(avg, 2) if count >= 10 else "New"
+
+            restaurants.append({
+                "restaurantID": rid,
+                "name": name,
+                "city": city_name,
+                "match_score": 0,
+                "rating": rating
+            })
+
+        restaurants.sort(key=lambda r: -r["rating"] if isinstance(r["rating"], float) else 0)
+
+    # Menüleri getir
     menus = {}
     for r in restaurants:
-        cursor.execute("SELECT itemID, itemName, price FROM MenuItem WHERE restaurantID = %s", (r[0],))
-        menus[r[0]] = cursor.fetchall()
+        cursor.execute("SELECT itemID, itemName, price FROM MenuItem WHERE restaurantID = %s", (r["restaurantID"],))
+        menus[r["restaurantID"]] = cursor.fetchall()
 
-    # Değerlendirme yapılmamış siparişler
+    # Değerlendirilmemiş siparişler
     cursor.execute("""
         SELECT O.orderID
         FROM `Order` O
@@ -74,7 +204,8 @@ def customer_dashboard():
                            username=session["username"],
                            restaurants=restaurants,
                            menus=menus,
-                           unrated_orders=unrated_orders)
+                           unrated_orders=unrated_orders,
+                           cart_items=cart_items)
 @customer_bp.route("/customer/checkout", methods=["POST"])
 def customer_checkout():
     if "user_id" not in session:
@@ -87,18 +218,26 @@ def customer_checkout():
     cart = cursor.fetchone()
     if not cart:
         conn.close()
-        return "No active cart to checkout."
+        flash("No active cart to checkout.")
+        return redirect("/customer/dashboard")
 
     cart_id = cart[0]
+
     cursor.execute("""
         UPDATE Cart
         SET status = 'SENT', checkedOutTimestamp = NOW()
         WHERE cartID = %s
     """, (cart_id,))
     cursor.execute("INSERT INTO `Order` (cartID) VALUES (%s)", (cart_id,))
+
+    # Create new empty cart shell
+    # cursor.execute("INSERT INTO Cart (customerID, restaurantID) VALUES (%s, NULL)", (session["user_id"],))
+
     conn.commit()
     conn.close()
-    return "Order sent successfully!"
+
+    flash("Order successfully sent!")
+    return redirect("/customer/dashboard")
 
 @customer_bp.route("/customer/rate/<int:order_id>", methods=["GET", "POST"])
 def rate_order(order_id):
@@ -108,25 +247,38 @@ def rate_order(order_id):
     conn = get_connection()
     cursor = conn.cursor()
 
+    # acceptedTimestamp üzerinden kontrol
+    cursor.execute("""
+        SELECT C.acceptedTimestamp, C.restaurantID
+        FROM `Order` O
+        JOIN Cart C ON O.cartID = C.cartID
+        WHERE O.orderID = %s AND C.customerID = %s
+    """, (order_id, session["user_id"]))
+    result = cursor.fetchone()
+
+    if not result:
+        conn.close()
+        return "Order not found or not yours."
+
+    accepted_time, restaurant_id = result
+
+    # Henüz kabul edilmemişse veya 24 saati geçmişse
+    if not accepted_time or datetime.now() - accepted_time > timedelta(hours=24):
+        conn.close()
+        flash("Rating period expired. You can only rate within 24 hours after restaurant acceptance.")
+        return redirect("/customer/dashboard")
+
     if request.method == "POST":
         rating = int(request.form["rating"])
         comment = request.form["comment"]
         cursor.execute("""
-            SELECT C.restaurantID FROM Cart C
-            JOIN `Order` O ON O.cartID = C.cartID
-            WHERE O.orderID = %s AND C.customerID = %s
-        """, (order_id, session["user_id"]))
-        result = cursor.fetchone()
-        if result:
-            restaurant_id = result[0]
-            cursor.execute("""
-                INSERT INTO Rating (orderID, customerID, restaurantID, ratingValue, comment)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (order_id, session["user_id"], restaurant_id, rating, comment))
-            conn.commit()
-            conn.close()
-            return "Thanks for your rating!"
+            INSERT INTO Rating (orderID, customerID, restaurantID, ratingValue, comment)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (order_id, session["user_id"], restaurant_id, rating, comment))
+        conn.commit()
         conn.close()
-        return "Order not found or not yours."
+        flash("Thanks for your rating!")
+        return redirect("/customer/dashboard")
 
+    conn.close()
     return render_template("rate_order.html", order_id=order_id)
