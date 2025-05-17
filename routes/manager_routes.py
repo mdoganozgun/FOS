@@ -93,3 +93,49 @@ def delete_item(item_id):
     conn.commit()
     conn.close()
     return redirect("/manager/dashboard")
+
+
+# 1. Show keyword-picker form
+@manager_bp.route("/manager/keywords/<int:rid>", methods=["GET"])
+def edit_keywords(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # ownership guard
+    cur.execute(
+        "SELECT 1 FROM Restaurant WHERE restaurantID=%s AND managerID=%s",
+        (rid, session["user_id"])
+    )
+    if not cur.fetchone():
+        conn.close()
+        return "Forbidden", 403
+
+    cur.execute("SELECT keywordID, keywordName FROM Keyword")
+    all_keys = cur.fetchall()
+    cur.execute("SELECT keywordID FROM tagged_with WHERE restaurantID=%s", (rid,))
+    tagged = {row[0] for row in cur.fetchall()}
+    conn.close()
+    return render_template("edit_keywords.html",
+                           restaurant_id=rid,
+                           all_keys=all_keys,
+                           tagged=tagged)
+
+# 2. Process keyword updates
+@manager_bp.route("/manager/keywords/<int:rid>", methods=["POST"])
+def save_keywords(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # clear old tags
+    cur.execute("DELETE FROM tagged_with WHERE restaurantID=%s", (rid,))
+    # insert new
+    for kid in request.form.getlist("keyword"):
+        cur.execute(
+            "INSERT INTO tagged_with (restaurantID,keywordID) VALUES (%s,%s)",
+            (rid, kid)
+        )
+    conn.commit()
+    conn.close()
+    return redirect("/manager/dashboard")
