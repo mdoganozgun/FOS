@@ -139,3 +139,100 @@ def save_keywords(rid):
     conn.commit()
     conn.close()
     return redirect("/manager/dashboard")
+
+# 3. Show discounts management form
+@manager_bp.route("/manager/discounts/<int:rid>", methods=["GET"])
+def edit_discounts(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # ownership guard
+    cur.execute(
+        "SELECT 1 FROM Restaurant WHERE restaurantID=%s AND managerID=%s",
+        (rid, session["user_id"])
+    )
+    if not cur.fetchone():
+        conn.close()
+        return "Forbidden", 403
+
+    # fetch all items for this restaurant
+    cur.execute("""
+        SELECT itemID, itemName, price
+        FROM MenuItem
+        WHERE restaurantID=%s
+    """, (rid,))
+    items = cur.fetchall()
+
+    # fetch active discounts for this restaurant's items
+    cur.execute("""
+        SELECT D.itemID, D.startTime, D.endTime, D.discountAmount, D.discountRate
+        FROM defines_discount D
+        JOIN MenuItem M ON D.itemID = M.itemID
+        WHERE M.restaurantID = %s
+    """, (rid,))
+    discounts = cur.fetchall()
+
+    conn.close()
+    return render_template("edit_discounts.html",
+                           restaurant_id=rid,
+                           items=items,
+                           discounts=discounts)
+
+# 4. Process discount updates
+@manager_bp.route("/manager/discounts/<int:rid>", methods=["POST"])
+def save_discounts(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # ownership guard
+    cur.execute(
+        "SELECT 1 FROM Restaurant WHERE restaurantID=%s AND managerID=%s",
+        (rid, session["user_id"])
+    )
+    if not cur.fetchone():
+        conn.close()
+        return "Forbidden", 403
+
+    # clear existing discounts for this restaurant
+    cur.execute("""
+        DELETE D
+        FROM defines_discount D
+        JOIN MenuItem M ON D.itemID = M.itemID
+        WHERE M.restaurantID = %s
+    """, (rid,))
+
+    # insert new discounts from form
+    # expect fields like discount-<itemID>-start, discount-<itemID>-end, discount-<itemID>-amt, discount-<itemID>-rate
+    for field in request.form:
+        if field.startswith("discount-") and field.endswith("-start"):
+            item_id = int(field.split("-")[1])
+            start = request.form.get(f"discount-{item_id}-start")
+            end   = request.form.get(f"discount-{item_id}-end")
+            amt_str  = request.form.get(f"discount-{item_id}-amt", "").strip()
+            rate_str = request.form.get(f"discount-{item_id}-rate", "").strip()
+            try:
+                amt_val  = float(amt_str)  if amt_str  else None
+                rate_val = float(rate_str) if rate_str else None
+            except ValueError:
+                # invalid numeric input—skip this discount
+                continue
+
+            # validate ranges
+            if amt_val is not None and amt_val < 0:
+                continue
+            if rate_val is not None and not (0 <= rate_val <= 100):
+                continue
+
+            # only save if at least one valid discount provided
+            if amt_val is not None or rate_val is not None:
+                cur.execute("""
+                    INSERT INTO defines_discount
+                      (managerID, itemID, startTime, endTime, discountAmount, discountRate)
+                    VALUES
+                      (%s, %s, %s, %s, %s, %s)
+                """, (session["user_id"], item_id, start, end, amt_val, rate_val))
+    conn.commit()
+    conn.close()
+    return redirect("/manager/dashboard")
