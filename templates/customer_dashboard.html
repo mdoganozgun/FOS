@@ -1,3 +1,4 @@
+# templates/customer_dashboard.html
 {% extends "base.html" %}
 
 {% block title %}Customer Dashboard{% endblock %}
@@ -10,29 +11,80 @@
     <button type="submit">Search</button>
 </form>
 
-<h3>Restaurants in Your City</h3>
-{% for rid, name, city in restaurants %}
-    <h4>{{ name }} ({{ city }})</h4>
-    <ul>
-        {% for item in menus[rid] %}
-            <li>
-                {{ item[1] }} — {{ item[2] }} ₺
+<div class="row">
+  {% for r in restaurants %}
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">{{ r.name }}</h5>
+          <h6 class="card-subtitle text-muted">{{ r.city }}</h6>
+          <p class="card-text">
+            Match Score: {{ r.match_score }}<br>
+            Rating: {% if r.rating == 'New' %}<em>New</em>{% else %}⭐ {{ r.rating }}{% endif %}
+          </p>
+          <hr>
+          <p><strong>Menu:</strong></p>
+          <ul>
+            {% for item in menus[r.restaurantID] %}
+              <li>
+                {{ item[1] }} – {{ item[2] }} ₺
                 <form method="POST" style="display:inline;">
-                    <input type="hidden" name="item_id" value="{{ item[0] }}">
-                    <input type="hidden" name="restaurant_id" value="{{ rid }}">
-                    <input type="number" name="quantity" value="1" min="1" style="width:50px;">
-                    <button type="submit">Add to cart</button>
+                  <input type="hidden" name="item_id" value="{{ item[0] }}">
+                  <input type="hidden" name="restaurant_id" value="{{ r.restaurantID }}">
+                  <input type="number" name="quantity" value="1" min="1" style="width: 60px;">
+                  <button type="submit" class="btn btn-sm btn-outline-primary">Add to cart</button>
                 </form>
-            </li>
-        {% endfor %}
-    </ul>
-{% endfor %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
 
-<!-- SEPETİ TAMAMLA BUTONU -->
+<h3>🛍️ My Cart</h3>
+{% if cart_items %}
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Price (₺)</th>
+        <th>Total (₺)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in cart_items %}
+        <tr>
+          <td>{{ item[0] }}</td>
+          <td>{{ item[1] }}</td>
+          <td>{{ item[2] }}</td>
+          <td>{{ item[3] }}</td>
+          <td>
+            <form method="POST" action="/customer/cart/increase" style="display:inline;">
+              <input type="hidden" name="item_name" value="{{ item[0] }}">
+              <button type="submit" class="btn btn-sm btn-success">+1</button>
+            </form>
+            <form method="POST" action="/customer/cart/delete" style="display:inline;">
+              <input type="hidden" name="item_name" value="{{ item[0] }}">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p>Your cart is empty.</p>
+{% endif %}
+
 <h3>🛒 Actions</h3>
 <form method="POST" action="/customer/checkout">
     <button type="submit">Checkout My Cart</button>
 </form>
+
 <h3>⭐ Orders Awaiting Your Rating</h3>
 <ul>
   {% for order in unrated_orders %}
