@@ -30,7 +30,7 @@ def manager_dashboard():
     restaurant_menus = {}
     for r in restaurants:
         rid = r[0]
-        cursor.execute("SELECT itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
+        cursor.execute("SELECT itemID, itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
         restaurant_menus[rid] = cursor.fetchall()
 
     one_month_ago = datetime.now() - timedelta(days=30)
@@ -73,6 +73,69 @@ def accept_order(cart_id):
             SELECT restaurantID FROM Restaurant WHERE managerID = %s
         )
     """, (cart_id, session["user_id"]))
+    conn.commit()
+    conn.close()
+    return redirect("/manager/dashboard")
+
+
+# Delete menu item route
+@manager_bp.route("/manager/delete_item/<int:item_id>", methods=["POST"])
+def delete_item(item_id):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        DELETE MI FROM MenuItem MI
+        JOIN Restaurant R ON MI.restaurantID = R.restaurantID
+        WHERE MI.itemID = %s AND R.managerID = %s
+    """, (item_id, session["user_id"]))
+    conn.commit()
+    conn.close()
+    return redirect("/manager/dashboard")
+
+
+# 1. Show keyword-picker form
+@manager_bp.route("/manager/keywords/<int:rid>", methods=["GET"])
+def edit_keywords(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # ownership guard
+    cur.execute(
+        "SELECT 1 FROM Restaurant WHERE restaurantID=%s AND managerID=%s",
+        (rid, session["user_id"])
+    )
+    if not cur.fetchone():
+        conn.close()
+        return "Forbidden", 403
+
+    cur.execute("SELECT keywordID, keywordName FROM Keyword")
+    all_keys = cur.fetchall()
+    cur.execute("SELECT keywordID FROM tagged_with WHERE restaurantID=%s", (rid,))
+    tagged = {row[0] for row in cur.fetchall()}
+    conn.close()
+    return render_template("edit_keywords.html",
+                           restaurant_id=rid,
+                           all_keys=all_keys,
+                           tagged=tagged)
+
+# 2. Process keyword updates
+@manager_bp.route("/manager/keywords/<int:rid>", methods=["POST"])
+def save_keywords(rid):
+    if "user_id" not in session:
+        return "Unauthorized", 401
+    conn = get_connection()
+    cur = conn.cursor()
+    # clear old tags
+    cur.execute("DELETE FROM tagged_with WHERE restaurantID=%s", (rid,))
+    # insert new
+    for kid in request.form.getlist("keyword"):
+        cur.execute(
+            "INSERT INTO tagged_with (restaurantID,keywordID) VALUES (%s,%s)",
+            (rid, kid)
+        )
     conn.commit()
     conn.close()
     return redirect("/manager/dashboard")
