@@ -29,6 +29,19 @@ def manager_dashboard():
 
     rids = [r[0] for r in restaurants]
 
+    # 0. Keywords per restaurant
+    restaurant_keywords = {}
+    if rids:
+        fmt = ','.join(['%s']*len(rids))
+        cursor.execute(f"""
+            SELECT t.restaurantID, k.keywordName
+            FROM tagged_with t
+            JOIN Keyword k ON t.keywordID = k.keywordID
+            WHERE t.restaurantID IN ({fmt})
+        """, tuple(rids))
+        for rid, kw in cursor.fetchall():
+            restaurant_keywords.setdefault(rid, []).append(kw)
+
     if rids:
         format_strings = ','.join(['%s'] * len(rids))
         cursor.execute(f"""
@@ -62,6 +75,52 @@ def manager_dashboard():
     """, (session["user_id"], one_month_ago))
     stats = cursor.fetchall()
 
+    # 2. Quantity & revenue per menu item in the last month
+    cursor.execute("""
+        SELECT M.itemName,
+               SUM(CI.quantity) AS total_qty,
+               SUM(CI.quantity * M.price) AS total_revenue
+        FROM CartItem CI
+        JOIN Cart C        ON CI.cartID = C.cartID
+        JOIN MenuItem M    ON CI.itemID = M.itemID
+        JOIN Restaurant R  ON C.restaurantID = R.restaurantID
+        WHERE R.managerID = %s
+          AND C.acceptedTimestamp >= %s
+        GROUP BY M.itemID
+    """, (session["user_id"], one_month_ago))
+    item_stats = cursor.fetchall()
+
+    # 3. Customer who placed the most orders in the last month
+    cursor.execute("""
+        SELECT C.customerID, COUNT(*) AS order_count
+        FROM Cart C
+        JOIN `Order` O    ON C.cartID = O.cartID
+        JOIN Restaurant R ON C.restaurantID = R.restaurantID
+        WHERE R.managerID = %s
+          AND C.acceptedTimestamp >= %s
+        GROUP BY C.customerID
+        ORDER BY order_count DESC
+        LIMIT 1
+    """, (session["user_id"], one_month_ago))
+    top_customer = cursor.fetchone()
+
+    # 4. Highest-value cart in the last month
+    cursor.execute("""
+        SELECT O.orderID,
+               SUM(CI.quantity * M.price) AS cart_value
+        FROM CartItem CI
+        JOIN Cart C        ON CI.cartID = C.cartID
+        JOIN `Order` O     ON C.cartID = O.cartID
+        JOIN MenuItem M    ON CI.itemID = M.itemID
+        JOIN Restaurant R  ON C.restaurantID = R.restaurantID
+        WHERE R.managerID = %s
+          AND C.acceptedTimestamp >= %s
+        GROUP BY O.orderID
+        ORDER BY cart_value DESC
+        LIMIT 1
+    """, (session["user_id"], one_month_ago))
+    top_cart = cursor.fetchone()
+
     cursor.execute("""
         SELECT C.cartID, C.customerID
         FROM Cart C
@@ -73,8 +132,11 @@ def manager_dashboard():
     conn.close()
     return render_template("manager_dashboard.html", username=session["username"],
                            restaurants=restaurants, restaurant_menus=restaurant_menus,
-                           stats=stats, pending_orders=pending_orders,
-                           rating_stats=rating_stats)
+                           stats=stats, item_stats=item_stats,
+                           top_customer=top_customer, top_cart=top_cart,
+                           pending_orders=pending_orders,
+                           rating_stats=rating_stats,
+                           restaurant_keywords=restaurant_keywords)
 
 @manager_bp.route("/manager/accept/<int:cart_id>", methods=["POST"])
 def accept_order(cart_id):

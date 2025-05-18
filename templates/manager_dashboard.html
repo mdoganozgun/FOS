@@ -27,6 +27,13 @@
           {% endif %}
         </small>
       </h3>
+      <p class="mb-2"><strong>Keywords:</strong>
+        {% if restaurant_keywords.get(rid) %}
+          {{ restaurant_keywords[rid] | join(', ') }}
+        {% else %}
+          <em>None</em>
+        {% endif %}
+      </p>
       <div>
         <a href="{{ url_for('manager.edit_keywords', rid=rid) }}"
            class="btn btn-sm btn-outline-secondary">Edit Keywords</a>
