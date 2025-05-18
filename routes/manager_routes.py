@@ -121,6 +121,21 @@ def manager_dashboard():
     """, (session["user_id"], one_month_ago))
     top_cart = cursor.fetchone()
 
+    # fetch items for top_cart if exists
+    top_cart_items = []
+    if top_cart:
+        top_order_id = top_cart[0]
+        cursor.execute("""
+            SELECT MI.itemName, CI.quantity, MI.price
+            FROM CartItem CI
+            JOIN MenuItem MI ON CI.itemID = MI.itemID
+            JOIN `Order` O ON CI.cartID = O.cartID
+            WHERE O.orderID = %s
+        """, (top_order_id,))
+        top_cart_items = cursor.fetchall()
+    else:
+        top_cart_items = []
+
     cursor.execute("""
         SELECT C.cartID, C.customerID
         FROM Cart C
@@ -158,6 +173,7 @@ def manager_dashboard():
         item_stats=item_stats,
         top_customer=top_customer,
         top_cart=top_cart,
+        top_cart_items=top_cart_items,
         pending_orders=pending_orders,
         rating_stats=rating_stats,
         pending_items=pending_items,

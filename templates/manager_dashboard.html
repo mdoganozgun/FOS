@@ -90,6 +90,32 @@
       {% else %}
         <li class="list-group-item">No recent data.</li>
       {% endfor %}
+      <li class="list-group-item d-flex justify-content-between">
+        <span>Top Customer</span>
+        {% if top_customer %}
+          <span>Customer #{{ top_customer[0] }} — {{ top_customer[1] }} orders</span>
+        {% else %}
+          <span>No orders in the last month.</span>
+        {% endif %}
+      </li>
+      <li class="list-group-item d-flex justify-content-between">
+        <span>Top Cart</span>
+        {% if top_cart %}
+          <span>Cart #{{ top_cart[0] }} — {{ top_cart[1]|round(2) }} ₺</span>
+        {% else %}
+          <span>No carts in the last month.</span>
+        {% endif %}
+      </li>
+      {% if top_cart_items %}
+        <li class="list-group-item">
+          <strong>Top Cart Contents:</strong>
+          <ul class="mt-2">
+            {% for name, qty, unit_price in top_cart_items %}
+              <li>• {{ name }} × {{ qty }} — {{ (qty * unit_price)|round(2) }} ₺</li>
+            {% endfor %}
+          </ul>
+        </li>
+      {% endif %}
     </ul>
   </div>
 </div>
