@@ -203,7 +203,7 @@ def customer_dashboard():
                 "rating": rating
             })
 
-        restaurants.sort(key=lambda r: -r["rating"] if isinstance(r["rating"], float) else 0)
+        restaurants.sort(key=lambda r: (-1 if r["rating"] == "New" else -r["rating"]))
 
     # Menüleri getir
     menus = {}
@@ -221,7 +221,8 @@ def customer_dashboard():
                  THEN M.price * (1.0 - D.discountRate/100)
                 ELSE M.price
               END AS effective_price,
-              M.price AS base_price
+              M.price AS base_price,
+              M.image
             FROM MenuItem M
             LEFT JOIN defines_discount D
               ON D.itemID = M.itemID

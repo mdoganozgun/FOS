@@ -19,20 +19,27 @@
           <h6 class="card-subtitle text-muted">{{ r.city }}</h6>
           <p class="card-text">
             Match Score: {{ r.match_score }}<br>
-            Rating: {% if r.rating == 'New' %}<em>New</em>{% else %}⭐ {{ r.rating }}{% endif %}
+            Rating: {% if r.rating == 'New' %}
+                      <em>New</em>
+                    {% else %}
+                      ⭐ {{ r.rating }}
+                    {% endif %}
           </p>
           <hr>
           <p><strong>Menu:</strong></p>
-          <ul>
-            {% for itemID, itemName, effective_price, base_price in menus[r.restaurantID] %}
-              <li>
-                {{ itemName }} – {{ effective_price }} ₺
-                <form method="POST" style="display:inline;">
-                  <input type="hidden" name="item_id" value="{{ itemID }}">
-                  <input type="hidden" name="restaurant_id" value="{{ r.restaurantID }}">
-                  <input type="number" name="quantity" value="1" min="1" style="width: 60px;">
-                  <button type="submit" class="btn btn-sm btn-outline-primary">Add to cart</button>
-                </form>
+          <ul class="list-unstyled">
+            {% for itemID, itemName, effective_price, base_price, image_path in menus[r.restaurantID] %}
+              <li class="media mb-3">
+                <img src="{{ url_for('static', filename=image_path) }}" class="mr-3" style="width: 64px; height: 64px; object-fit: cover;" alt="{{ itemName }}">
+                <div class="media-body">
+                  <h6 class="mt-0 mb-1">{{ itemName }} – {{ effective_price }} ₺</h6>
+                  <form method="POST" class="form-inline mt-1">
+                    <input type="hidden" name="item_id" value="{{ itemID }}">
+                    <input type="hidden" name="restaurant_id" value="{{ r.restaurantID }}">
+                    <input type="number" name="quantity" value="1" min="1" style="width: 60px;" class="form-control form-control-sm mr-2">
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Add to cart</button>
+                  </form>
+                </div>
               </li>
             {% endfor %}
           </ul>
