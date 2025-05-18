@@ -3,8 +3,11 @@
 {% block title %}My Profile{% endblock %}
 
 {% block content %}
-<h2>👤 My Profile</h2>
-
+<div class="card mb-4">
+  <div class="card-header bg-info text-white">
+    <h4 class="mb-0">👤 My Profile</h4>
+  </div>
+  <div class="card-body">
 {% with messages = get_flashed_messages() %}
   {% if messages %}
     <div class="alert alert-success">
@@ -17,21 +20,38 @@
 
 <form method="POST">
   <div class="mb-3">
-    <label for="email" class="form-label">Email</label>
+    <label for="email" class="form-label">📧 Email</label>
     <input type="email" class="form-control" name="email" id="email" value="{{ email }}" required>
   </div>
 
   <div class="mb-3">
-    <label for="phone" class="form-label">Phone Number</label>
+    <label for="phone" class="form-label">☎️ Phone Number</label>
     <input type="text" class="form-control" name="phone" id="phone" value="{{ phone }}">
   </div>
 
   <div class="mb-3">
-    <label for="address" class="form-label">Address</label>
-    <textarea class="form-control" name="address" id="address" rows="2">{{ address }}</textarea>
+    <label for="address" class="form-label">🏠 Address Text</label>
+    <input type="text" class="form-control" name="address" id="address" value="{{ address }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="city" class="form-label">🏙️ City</label>
+    <input type="text" class="form-control" name="city" id="city" value="{{ city }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="district" class="form-label">📍 District</label>
+    <input type="text" class="form-control" name="district" id="district" value="{{ district }}">
+  </div>
+
+  <div class="mb-3">
+    <label for="neighborhood" class="form-label">🏘️ Neighborhood</label>
+    <input type="text" class="form-control" name="neighborhood" id="neighborhood" value="{{ neighborhood }}">
   </div>
 
   <button type="submit" class="btn btn-primary">Update Profile</button>
   <a href="{{ url_for('customer.customer_dashboard') }}" class="btn btn-secondary ms-2">Back to Dashboard</a>
 </form>
+  </div>
+</div>
 {% endblock %}
