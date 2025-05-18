@@ -129,6 +129,17 @@ def manager_dashboard():
     """, (session["user_id"],))
     pending_orders = cursor.fetchall()
 
+    # 5. Contents of pending carts
+    pending_items = {}
+    for cart_id, cust_id in pending_orders:
+        cursor.execute("""
+            SELECT MI.itemName, CI.quantity
+            FROM CartItem CI
+            JOIN MenuItem MI ON CI.itemID = MI.itemID
+            WHERE CI.cartID = %s
+        """, (cart_id,))
+        pending_items[cart_id] = cursor.fetchall()
+
     conn.close()
     return render_template("manager_dashboard.html", username=session["username"],
                            restaurants=restaurants, restaurant_menus=restaurant_menus,
@@ -136,7 +147,8 @@ def manager_dashboard():
                            top_customer=top_customer, top_cart=top_cart,
                            pending_orders=pending_orders,
                            rating_stats=rating_stats,
-                           restaurant_keywords=restaurant_keywords)
+                           restaurant_keywords=restaurant_keywords,
+                           pending_items=pending_items)
 
 @manager_bp.route("/manager/accept/<int:cart_id>", methods=["POST"])
 def accept_order(cart_id):

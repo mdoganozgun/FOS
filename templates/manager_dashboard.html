@@ -99,11 +99,18 @@
     <h3>📦 Pending Orders</h3>
     <ul class="list-group">
       {% for cart_id, customer_id in pending_orders %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <span>Cart #{{ cart_id }} by Customer #{{ customer_id }}</span>
-          <form method="POST" action="{{ url_for('manager.accept_order', cart_id=cart_id) }}" class="m-0">
-            <button type="submit" class="btn btn-success btn-sm">Accept Order</button>
-          </form>
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center">
+            <span>Cart #{{ cart_id }} by Customer #{{ customer_id }}</span>
+            <form method="POST" action="{{ url_for('manager.accept_order', cart_id=cart_id) }}" class="m-0">
+              <button type="submit" class="btn btn-success btn-sm">Accept Order</button>
+            </form>
+          </div>
+          <ul class="mt-2">
+            {% for name, qty in pending_items[cart_id] %}
+              <li class="small">• {{ name }} × {{ qty }}</li>
+            {% endfor %}
+          </ul>
         </li>
       {% else %}
         <li class="list-group-item">No pending orders found.</li>
