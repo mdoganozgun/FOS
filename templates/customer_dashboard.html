@@ -24,11 +24,11 @@
           <hr>
           <p><strong>Menu:</strong></p>
           <ul>
-            {% for item in menus[r.restaurantID] %}
+            {% for itemID, itemName, effective_price, base_price in menus[r.restaurantID] %}
               <li>
-                {{ item[1] }} – {{ item[2] }} ₺
+                {{ itemName }} – {{ effective_price }} ₺
                 <form method="POST" style="display:inline;">
-                  <input type="hidden" name="item_id" value="{{ item[0] }}">
+                  <input type="hidden" name="item_id" value="{{ itemID }}">
                   <input type="hidden" name="restaurant_id" value="{{ r.restaurantID }}">
                   <input type="number" name="quantity" value="1" min="1" style="width: 60px;">
                   <button type="submit" class="btn btn-sm btn-outline-primary">Add to cart</button>

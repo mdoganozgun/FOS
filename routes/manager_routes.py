@@ -59,7 +59,27 @@ def manager_dashboard():
     restaurant_menus = {}
     for r in restaurants:
         rid = r[0]
-        cursor.execute("SELECT itemID, itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
+        cursor.execute("""
+            SELECT
+              M.itemID,
+              M.itemName,
+              CASE
+                WHEN D.discountAmount IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price - D.discountAmount
+                WHEN D.discountRate IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price * (1.0 - D.discountRate/100)
+                ELSE M.price
+              END AS effective_price,
+              M.price AS base_price,
+              M.description
+            FROM MenuItem M
+            LEFT JOIN defines_discount D
+              ON D.itemID = M.itemID
+              AND NOW() BETWEEN D.startTime AND D.endTime
+            WHERE M.restaurantID = %s
+        """, (rid,))
         restaurant_menus[rid] = cursor.fetchall()
 
     one_month_ago = datetime.now() - timedelta(days=30)
