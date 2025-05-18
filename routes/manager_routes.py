@@ -29,18 +29,18 @@ def manager_dashboard():
 
     rids = [r[0] for r in restaurants]
 
-    # 0. Keywords per restaurant
+    # Fetch keywords for each restaurant
     restaurant_keywords = {}
     if rids:
-        fmt = ','.join(['%s']*len(rids))
+        fmt_keys = ','.join(['%s'] * len(rids))
         cursor.execute(f"""
             SELECT t.restaurantID, k.keywordName
             FROM tagged_with t
             JOIN Keyword k ON t.keywordID = k.keywordID
-            WHERE t.restaurantID IN ({fmt})
+            WHERE t.restaurantID IN ({fmt_keys})
         """, tuple(rids))
-        for rid, kw in cursor.fetchall():
-            restaurant_keywords.setdefault(rid, []).append(kw)
+        for rid_val, kw in cursor.fetchall():
+            restaurant_keywords.setdefault(rid_val, []).append(kw)
 
     if rids:
         format_strings = ','.join(['%s'] * len(rids))
@@ -133,22 +133,37 @@ def manager_dashboard():
     pending_items = {}
     for cart_id, cust_id in pending_orders:
         cursor.execute("""
-            SELECT MI.itemName, CI.quantity
+            SELECT MI.itemName, CI.quantity, MI.price
             FROM CartItem CI
             JOIN MenuItem MI ON CI.itemID = MI.itemID
             WHERE CI.cartID = %s
         """, (cart_id,))
         pending_items[cart_id] = cursor.fetchall()
 
+    # Compute total value for each pending cart
+    pending_totals = {}
+    for cart_id, items in pending_items.items():
+        total = 0
+        for name, qty, unit_price in items:
+            total += qty * unit_price
+        pending_totals[cart_id] = total
+
     conn.close()
-    return render_template("manager_dashboard.html", username=session["username"],
-                           restaurants=restaurants, restaurant_menus=restaurant_menus,
-                           stats=stats, item_stats=item_stats,
-                           top_customer=top_customer, top_cart=top_cart,
-                           pending_orders=pending_orders,
-                           rating_stats=rating_stats,
-                           restaurant_keywords=restaurant_keywords,
-                           pending_items=pending_items)
+    return render_template(
+        "manager_dashboard.html",
+        username=session["username"],
+        restaurants=restaurants,
+        restaurant_menus=restaurant_menus,
+        stats=stats,
+        item_stats=item_stats,
+        top_customer=top_customer,
+        top_cart=top_cart,
+        pending_orders=pending_orders,
+        rating_stats=rating_stats,
+        pending_items=pending_items,
+        pending_totals=pending_totals,
+        restaurant_keywords=restaurant_keywords
+    )
 
 @manager_bp.route("/manager/accept/<int:cart_id>", methods=["POST"])
 def accept_order(cart_id):
