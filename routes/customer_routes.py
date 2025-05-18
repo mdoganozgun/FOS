@@ -104,12 +104,37 @@ def customer_dashboard():
         conn.close()
         return redirect("/customer/dashboard")
 
-    # Get current cart items
+    # Get current cart items with effective price (discounted if applicable)
     cursor.execute("""
-        SELECT M.itemName, CI.quantity, M.price, (CI.quantity * M.price) AS total
+        SELECT 
+          M.itemName,
+          CI.quantity,
+          CASE
+            WHEN D.discountAmount IS NOT NULL
+             AND NOW() BETWEEN D.startTime AND D.endTime
+             THEN M.price - D.discountAmount
+            WHEN D.discountRate IS NOT NULL
+             AND NOW() BETWEEN D.startTime AND D.endTime
+             THEN M.price * (1.0 - D.discountRate/100)
+            ELSE M.price
+          END AS effective_price,
+          (CI.quantity * (
+            CASE
+              WHEN D.discountAmount IS NOT NULL
+               AND NOW() BETWEEN D.startTime AND D.endTime
+               THEN M.price - D.discountAmount
+              WHEN D.discountRate IS NOT NULL
+               AND NOW() BETWEEN D.startTime AND D.endTime
+               THEN M.price * (1.0 - D.discountRate/100)
+              ELSE M.price
+            END
+          )) AS total
         FROM CartItem CI
         JOIN Cart C ON CI.cartID = C.cartID
         JOIN MenuItem M ON CI.itemID = M.itemID
+        LEFT JOIN defines_discount D
+          ON D.itemID = M.itemID
+          AND NOW() BETWEEN D.startTime AND D.endTime
         WHERE C.customerID = %s AND C.status = 'BUILDING'
     """, (session["user_id"],))
     cart_items = cursor.fetchall()
