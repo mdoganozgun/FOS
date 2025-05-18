@@ -84,7 +84,9 @@ def manager_dashboard():
 
     one_month_ago = datetime.now() - timedelta(days=30)
     cursor.execute("""
-        SELECT R.restaurantName, COUNT(O.orderID), SUM(M.price * CI.quantity)
+        SELECT R.restaurantName,
+               COUNT(DISTINCT O.orderID) AS order_count,
+               SUM(M.price * CI.quantity)     AS revenue
         FROM Restaurant R
         JOIN Cart C ON R.restaurantID = C.restaurantID
         JOIN `Order` O ON C.cartID = O.cartID
