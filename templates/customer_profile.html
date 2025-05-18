@@ -36,17 +36,23 @@
 
   <div class="mb-3">
     <label for="city" class="form-label">🏙️ City</label>
-    <input type="text" class="form-control" name="city" id="city" value="{{ city }}">
+    <select name="city" id="city" class="form-select" required>
+      <option value="">Select City</option>
+    </select>
   </div>
 
   <div class="mb-3">
     <label for="district" class="form-label">📍 District</label>
-    <input type="text" class="form-control" name="district" id="district" value="{{ district }}">
+    <select name="district" id="district" class="form-select" required>
+      <option value="">Select District</option>
+    </select>
   </div>
 
   <div class="mb-3">
     <label for="neighborhood" class="form-label">🏘️ Neighborhood</label>
-    <input type="text" class="form-control" name="neighborhood" id="neighborhood" value="{{ neighborhood }}">
+    <select name="neighborhood" id="neighborhood" class="form-select" required>
+      <option value="">Select Neighborhood</option>
+    </select>
   </div>
 
   <button type="submit" class="btn btn-primary">Update Profile</button>
@@ -54,4 +60,6 @@
 </form>
   </div>
 </div>
+
+<script src="{{ url_for('static', filename='js/address-picker.js') }}"></script>
 {% endblock %}

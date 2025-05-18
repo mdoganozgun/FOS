@@ -21,12 +21,13 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
       <div class="container">
-        <a class="navbar-brand" href="{{ url_for('customer.customer_dashboard') }}">FoodApp</a>
+        <a class="navbar-brand" href="{{ url_for('index') }}">FoodApp</a>
         <ul class="navbar-nav ms-auto">
         <li class="nav-item">
   <a class="nav-link {% if request.endpoint == 'customer.profile' %}active{% endif %}" href="{{ url_for('customer.profile') }}">👤 Profile</a>
 </li>
           {% if session.get('user_id') %}
+            {% if session.get('role') == 'customer' %}
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center {% if request.endpoint == 'customer.view_orders' %}active{% endif %}" href="{{ url_for('customer.view_orders') }}">
                 📦 My Orders
@@ -35,6 +36,7 @@
                 {% endif %}
               </a>
             </li>
+            {% endif %}
             <li class="nav-item">
               <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
             </li>

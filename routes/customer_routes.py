@@ -389,6 +389,9 @@ def profile():
         email = request.form["email"]
         phone = request.form["phone"]
         address = request.form["address"]
+        city = request.form["city"]
+        district = request.form["district"]
+        neighborhood = request.form["neighborhood"]
 
         cursor.execute("UPDATE User SET email = %s WHERE userID = %s", (email, session["user_id"]))
 
@@ -396,10 +399,19 @@ def profile():
         cursor.execute("INSERT INTO UserPhone (userID, phoneNumber, phoneType) VALUES (%s, %s, 'Mobile')",
                        (session["user_id"], phone))
 
-        cursor.execute("DELETE FROM UserAddress WHERE userID = %s", (session["user_id"],))
-        cursor.execute("""INSERT INTO UserAddress (userID, addressText, city, district, neighborhood)
-                          VALUES (%s, %s, 'City', 'District', 'Neighborhood')""",
-                       (session["user_id"], address))
+        cursor.execute("SELECT addressID FROM UserAddress WHERE userID = %s", (session["user_id"],))
+        existing_address = cursor.fetchone()
+        if existing_address:
+            cursor.execute("""
+                UPDATE UserAddress
+                SET addressText = %s, city = %s, district = %s, neighborhood = %s
+                WHERE userID = %s
+            """, (address, city, district, neighborhood, session["user_id"]))
+        else:
+            cursor.execute("""
+                INSERT INTO UserAddress (userID, addressText, city, district, neighborhood)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (session["user_id"], address, city, district, neighborhood))
 
         conn.commit()
         conn.close()
