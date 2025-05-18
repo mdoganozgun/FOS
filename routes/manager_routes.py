@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, session
+from flask import Blueprint, render_template, request, redirect, session, url_for
 from db_config import get_connection
 from datetime import datetime, timedelta
 
@@ -12,7 +12,7 @@ def manager_dashboard():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Menü ekleme işlemi
+    # Menu addition
     if request.method == "POST":
         restaurant_id = request.form["restaurant_id"]
         item_name = request.form["item_name"]
@@ -28,9 +28,9 @@ def manager_dashboard():
     restaurants = cursor.fetchall()
 
     rids = [r[0] for r in restaurants]
+    restaurant_keywords = {}
 
     # Fetch keywords for each restaurant
-    restaurant_keywords = {}
     if rids:
         fmt_keys = ','.join(['%s'] * len(rids))
         cursor.execute(f"""
@@ -90,7 +90,7 @@ def manager_dashboard():
         JOIN `Order` O ON C.cartID = O.cartID
         JOIN CartItem CI ON C.cartID = CI.cartID
         JOIN MenuItem M ON CI.itemID = M.itemID
-        WHERE R.managerID = %s AND O.orderTimestamp >= %s
+        WHERE R.managerID = %s AND C.acceptedTimestamp >= %s
         GROUP BY R.restaurantName
     """, (session["user_id"], one_month_ago))
     stats = cursor.fetchall()
@@ -208,6 +208,11 @@ def accept_order(cart_id):
 
     conn = get_connection()
     cursor = conn.cursor()
+    # Insert into Order table, but ignore if already exists for this cart
+    cursor.execute("""
+        INSERT IGNORE INTO `Order` (cartID)
+        VALUES (%s)
+    """, (cart_id,))
     cursor.execute("""
         UPDATE Cart
         SET status = 'ACCEPTED', acceptedTimestamp = NOW()
@@ -217,7 +222,7 @@ def accept_order(cart_id):
     """, (cart_id, session["user_id"]))
     conn.commit()
     conn.close()
-    return redirect("/manager/dashboard")
+    return redirect(url_for('manager.manager_dashboard'))
 
 
 # Delete menu item route
