@@ -183,7 +183,26 @@ def customer_dashboard():
     # Menüleri getir
     menus = {}
     for r in restaurants:
-        cursor.execute("SELECT itemID, itemName, price FROM MenuItem WHERE restaurantID = %s", (r["restaurantID"],))
+        cursor.execute("""
+            SELECT
+              M.itemID,
+              M.itemName,
+              CASE
+                WHEN D.discountAmount IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price - D.discountAmount
+                WHEN D.discountRate IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price * (1.0 - D.discountRate/100)
+                ELSE M.price
+              END AS effective_price,
+              M.price AS base_price
+            FROM MenuItem M
+            LEFT JOIN defines_discount D
+              ON D.itemID = M.itemID
+              AND NOW() BETWEEN D.startTime AND D.endTime
+            WHERE M.restaurantID = %s
+        """, (r["restaurantID"],))
         menus[r["restaurantID"]] = cursor.fetchall()
 
     # Değerlendirilmemiş siparişler

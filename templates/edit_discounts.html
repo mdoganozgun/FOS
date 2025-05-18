@@ -29,32 +29,32 @@
               {% endif %}
             {% endfor %}
             <div class="row g-3 align-items-center">
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <label for="start-{{ item_id }}" class="form-label">Start Time</label>
                 <input type="datetime-local" id="start-{{ item_id }}"
                        name="discount-{{ item_id }}-start"
-                       class="form-control"
+                       class="form-control form-control-sm w-100"
                        value="{{ cur_disc[1]|default('') }}">
               </div>
-              <div class="col-md-3">
+              <div class="col-md-4">
                 <label for="end-{{ item_id }}" class="form-label">End Time</label>
                 <input type="datetime-local" id="end-{{ item_id }}"
                        name="discount-{{ item_id }}-end"
-                       class="form-control"
+                       class="form-control form-control-sm w-100"
                        value="{{ cur_disc[2]|default('') }}">
               </div>
-              <div class="col-auto">
+              <div class="col-md-2">
                 <label for="amt-{{ item_id }}" class="form-label text-nowrap">Amount (₺)</label>
                 <input type="number" step="0.01" placeholder="0.00" id="amt-{{ item_id }}"
                        name="discount-{{ item_id }}-amt"
-                       class="form-control"
+                       class="form-control form-control-sm w-100"
                        value="{{ cur_disc[3]|default('') }}">
               </div>
-              <div class="col-auto">
+              <div class="col-md-2">
                 <label for="rate-{{ item_id }}" class="form-label text-nowrap">Rate (%)</label>
                 <input type="number" step="0.01" placeholder="0.00" id="rate-{{ item_id }}"
                        name="discount-{{ item_id }}-rate"
-                       class="form-control"
+                       class="form-control form-control-sm w-100"
                        value="{{ cur_disc[4]|default('') }}">
               </div>
             </div>

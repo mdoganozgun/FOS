@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, session
+from flask import Blueprint, render_template, request, redirect, session, url_for
 from db_config import get_connection
 from datetime import datetime, timedelta
 
@@ -12,7 +12,7 @@ def manager_dashboard():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Menü ekleme işlemi
+    # Menu addition
     if request.method == "POST":
         restaurant_id = request.form["restaurant_id"]
         item_name = request.form["item_name"]
@@ -28,9 +28,9 @@ def manager_dashboard():
     restaurants = cursor.fetchall()
 
     rids = [r[0] for r in restaurants]
+    restaurant_keywords = {}
 
     # Fetch keywords for each restaurant
-    restaurant_keywords = {}
     if rids:
         fmt_keys = ','.join(['%s'] * len(rids))
         cursor.execute(f"""
@@ -59,7 +59,27 @@ def manager_dashboard():
     restaurant_menus = {}
     for r in restaurants:
         rid = r[0]
-        cursor.execute("SELECT itemID, itemName, price, description FROM MenuItem WHERE restaurantID = %s", (rid,))
+        cursor.execute("""
+            SELECT
+              M.itemID,
+              M.itemName,
+              CASE
+                WHEN D.discountAmount IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price - D.discountAmount
+                WHEN D.discountRate IS NOT NULL
+                 AND NOW() BETWEEN D.startTime AND D.endTime
+                 THEN M.price * (1.0 - D.discountRate/100)
+                ELSE M.price
+              END AS effective_price,
+              M.price AS base_price,
+              M.description
+            FROM MenuItem M
+            LEFT JOIN defines_discount D
+              ON D.itemID = M.itemID
+              AND NOW() BETWEEN D.startTime AND D.endTime
+            WHERE M.restaurantID = %s
+        """, (rid,))
         restaurant_menus[rid] = cursor.fetchall()
 
     one_month_ago = datetime.now() - timedelta(days=30)
@@ -70,7 +90,7 @@ def manager_dashboard():
         JOIN `Order` O ON C.cartID = O.cartID
         JOIN CartItem CI ON C.cartID = CI.cartID
         JOIN MenuItem M ON CI.itemID = M.itemID
-        WHERE R.managerID = %s AND O.orderTimestamp >= %s
+        WHERE R.managerID = %s AND C.acceptedTimestamp >= %s
         GROUP BY R.restaurantName
     """, (session["user_id"], one_month_ago))
     stats = cursor.fetchall()
@@ -121,6 +141,21 @@ def manager_dashboard():
     """, (session["user_id"], one_month_ago))
     top_cart = cursor.fetchone()
 
+    # fetch items for top_cart if exists
+    top_cart_items = []
+    if top_cart:
+        top_order_id = top_cart[0]
+        cursor.execute("""
+            SELECT MI.itemName, CI.quantity, MI.price
+            FROM CartItem CI
+            JOIN MenuItem MI ON CI.itemID = MI.itemID
+            JOIN `Order` O ON CI.cartID = O.cartID
+            WHERE O.orderID = %s
+        """, (top_order_id,))
+        top_cart_items = cursor.fetchall()
+    else:
+        top_cart_items = []
+
     cursor.execute("""
         SELECT C.cartID, C.customerID
         FROM Cart C
@@ -158,6 +193,7 @@ def manager_dashboard():
         item_stats=item_stats,
         top_customer=top_customer,
         top_cart=top_cart,
+        top_cart_items=top_cart_items,
         pending_orders=pending_orders,
         rating_stats=rating_stats,
         pending_items=pending_items,
@@ -172,6 +208,11 @@ def accept_order(cart_id):
 
     conn = get_connection()
     cursor = conn.cursor()
+    # Insert into Order table, but ignore if already exists for this cart
+    cursor.execute("""
+        INSERT IGNORE INTO `Order` (cartID)
+        VALUES (%s)
+    """, (cart_id,))
     cursor.execute("""
         UPDATE Cart
         SET status = 'ACCEPTED', acceptedTimestamp = NOW()
@@ -181,7 +222,7 @@ def accept_order(cart_id):
     """, (cart_id, session["user_id"]))
     conn.commit()
     conn.close()
-    return redirect("/manager/dashboard")
+    return redirect(url_for('manager.manager_dashboard'))
 
 
 # Delete menu item route
