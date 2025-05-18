@@ -30,7 +30,7 @@
           <ul class="list-unstyled">
             {% for itemID, itemName, effective_price, base_price, image_path in menus[r.restaurantID] %}
               <li class="media mb-3">
-                <img src="{{ url_for('static', filename=image_path) }}" class="mr-3" style="width: 64px; height: 64px; object-fit: cover;" alt="{{ itemName }}">
+                <img src="{{ url_for('static', filename=image_path if image_path else 'uploads/default.jpg') }}" class="mr-3" style="width: 64px; height: 64px; object-fit: cover;" alt="{{ itemName }}">
                 <div class="media-body">
                   <h6 class="mt-0 mb-1">{{ itemName }} – {{ effective_price }} ₺</h6>
                   <form method="POST" class="form-inline mt-1">
