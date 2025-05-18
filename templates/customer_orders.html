@@ -15,6 +15,7 @@
         <th>Items</th>
         <th>Total (₺)</th>
         <th>Reorder</th>
+        <th>Rate</th>
       </tr>
     </thead>
     <tbody>
@@ -30,6 +31,15 @@
             <form method="POST" action="/customer/reorder/{{ order[0] }}">
               <button class="btn btn-sm btn-outline-primary">Reorder</button>
             </form>
+          </td>
+          <td>
+            {% if order[6] %}
+              <button class="btn btn-sm btn-success" disabled>Rated</button>
+            {% elif order[3] == 'ACCEPTED' %}
+              <a href="{{ url_for('customer.rate_order', order_id=order[0]) }}" class="btn btn-sm btn-outline-warning">Rate</a>
+            {% else %}
+              <button class="btn btn-sm btn-outline-secondary" disabled>Rate</button>
+            {% endif %}
           </td>
         </tr>
       {% endfor %}

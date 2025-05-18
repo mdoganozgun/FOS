@@ -216,13 +216,13 @@ def customer_checkout():
     cursor = conn.cursor()
 
     cursor.execute("SELECT cartID FROM Cart WHERE customerID = %s AND status = 'BUILDING'", (session["user_id"],))
-    cart = cursor.fetchone()
-    if not cart:
+    cart_result = cursor.fetchall()
+    if not cart_result:
         conn.close()
         flash("No active cart to checkout.")
         return redirect("/customer/dashboard")
 
-    cart_id = cart[0]
+    cart_id = cart_result[0][0]
 
     cursor.execute("""
         UPDATE Cart
@@ -277,6 +277,17 @@ def rate_order(order_id):
             VALUES (%s, %s, %s, %s, %s)
         """, (order_id, session["user_id"], restaurant_id, rating, comment))
         conn.commit()
+        # Update pending ratings count in session using same connection
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM `Order` O
+            JOIN Cart C ON O.cartID = C.cartID
+            WHERE C.customerID = %s AND C.status = 'ACCEPTED'
+            AND NOT EXISTS (
+                SELECT 1 FROM Rating R WHERE R.orderID = O.orderID
+            )
+        """, (session["user_id"],))
+        session['pending_ratings'] = cursor.fetchone()[0]
         conn.close()
         flash("Thanks for your rating!")
         return redirect("/customer/dashboard")
@@ -339,12 +350,14 @@ def view_orders():
     cursor.execute("""
         SELECT O.orderID, R.restaurantName, C.createdTimestamp, C.status,
                GROUP_CONCAT(M.itemName SEPARATOR ', ') AS items,
-               SUM(CI.quantity * M.price) AS total
+               SUM(CI.quantity * M.price) AS total,
+               CASE WHEN RT.ratingID IS NOT NULL THEN 1 ELSE 0 END AS is_rated
         FROM `Order` O
         JOIN Cart C ON O.cartID = C.cartID
         JOIN CartItem CI ON C.cartID = CI.cartID
         JOIN MenuItem M ON CI.itemID = M.itemID
         JOIN Restaurant R ON C.restaurantID = R.restaurantID
+        LEFT JOIN Rating RT ON O.orderID = RT.orderID
         WHERE C.customerID = %s
         GROUP BY O.orderID
         ORDER BY C.createdTimestamp DESC
