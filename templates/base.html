@@ -23,9 +23,11 @@
       <div class="container">
         <a class="navbar-brand" href="{{ url_for('index') }}">FoodApp</a>
         <ul class="navbar-nav ms-auto">
-        <li class="nav-item">
-  <a class="nav-link {% if request.endpoint == 'customer.profile' %}active{% endif %}" href="{{ url_for('customer.profile') }}">👤 Profile</a>
-</li>
+        {% if session.get('user_id') %}
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'customer.profile' %}active{% endif %}" href="{{ url_for('customer.profile') }}">👤 Profile</a>
+          </li>
+        {% endif %}
           {% if session.get('user_id') %}
             {% if session.get('role') == 'customer' %}
             <li class="nav-item">
