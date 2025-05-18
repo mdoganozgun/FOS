@@ -215,7 +215,8 @@ def accept_order(cart_id):
     """, (cart_id,))
     cursor.execute("""
         UPDATE Cart
-        SET status = 'ACCEPTED', acceptedTimestamp = NOW()
+        SET status = 'ACCEPTED', 
+            acceptedTimestamp = NOW()
         WHERE cartID = %s AND restaurantID IN (
             SELECT restaurantID FROM Restaurant WHERE managerID = %s
         )
